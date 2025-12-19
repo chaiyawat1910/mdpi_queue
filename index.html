@@ -200,8 +200,8 @@
 
             return (
                 <div className="min-h-screen pb-10">
-                    {/* Responsive Container: ปรับขนาดตามหน้าจอ */}
-                    <div className="w-full max-w-6xl mx-auto bg-white shadow-xl md:rounded-b-2xl md:mt-4 overflow-hidden">
+                    {/* Responsive Container: ปรับขนาดตามหน้าจอ - ขยายให้กว้างขึ้นสำหรับ Full HD */}
+                    <div className="w-full max-w-[1800px] mx-auto bg-white shadow-xl md:rounded-b-2xl md:mt-4 overflow-hidden">
                         
                         {/* Header */}
                         <div className="bg-indigo-600 p-4 sm:p-6 text-white sticky top-0 z-30 shadow-md md:relative">
@@ -288,8 +288,8 @@
                                 
                                 {/* Scrollable Container */}
                                 <div className="max-h-[60vh] lg:max-h-[600px] overflow-y-auto pr-1 sm:pr-2 custom-scroll border border-slate-200 rounded-xl p-2 sm:p-3 bg-slate-50/50">
-                                    {/* Responsive Grid: ปรับจำนวนคอลัมน์ตามขนาดจอ */}
-                                    <div className="grid grid-cols-3 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-6 gap-2 sm:gap-3">
+                                    {/* Responsive Grid: ปรับจำนวนคอลัมน์ตามขนาดจอ เพิ่ม xl และ 2xl */}
+                                    <div className="grid grid-cols-3 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 sm:gap-3">
                                         {timeSlots.map((time) => {
                                             const isBooked = bookings[time];
                                             const isSelected = selectedTime === time;
@@ -360,7 +360,7 @@
                         
                     </div>
                     <div className="text-center text-gray-400 text-xs py-4">
-                        ระบบจองคิว v1.2 (Responsive Update)
+                        ระบบจองคิว v1.2 (Full HD Support)
                     </div>
                 </div>
             );
