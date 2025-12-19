@@ -26,21 +26,10 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
-        /* Custom Scrollbar for better look */
-        .custom-scroll::-webkit-scrollbar {
-            width: 8px;
-        }
-        .custom-scroll::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background: #c7c7c7;
-            border-radius: 4px;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb:hover {
-            background: #a0a0a0;
-        }
+        .custom-scroll::-webkit-scrollbar { width: 8px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #a0a0a0; }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -62,18 +51,20 @@
         let collectionPath;
 
         if (isPreview) {
+            // โหมด Preview (ในหน้าแชทนี้)
             firebaseConfig = JSON.parse(__firebase_config);
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             collectionPath = `artifacts/${appId}/public/data/photo_bookings`;
         } else {
-            // โหมด GitHub: ใส่ค่าของคุณเองที่นี่
+            // โหมด GitHub: ใช้ Config จริงที่คุณให้มา
             firebaseConfig = {
-                apiKey: "AIzaSy... (ใส่ key ของคุณ)",
-                authDomain: "your-project.firebaseapp.com",
-                projectId: "your-project",
-                storageBucket: "your-project.appspot.com",
-                messagingSenderId: "123456...",
-                appId: "1:123456..."
+                apiKey: "AIzaSyBWDvn67-_uW-OagSezI16kjbANVa4yAJI",
+                authDomain: "my-queue-system-5b1d6.firebaseapp.com",
+                projectId: "my-queue-system-5b1d6",
+                storageBucket: "my-queue-system-5b1d6.firebasestorage.app",
+                messagingSenderId: "57979958638",
+                appId: "1:57979958638:web:82d71cc5654f304764fd7f",
+                measurementId: "G-WNP7J2F96C"
             };
             collectionPath = "photo_bookings"; 
         }
@@ -130,7 +121,8 @@
                             await signInAnonymously(auth);
                         }
                     } catch (err) {
-                        setError("เชื่อมต่อระบบไม่สำเร็จ");
+                        console.error("Auth Error:", err);
+                        setError("เชื่อมต่อระบบไม่สำเร็จ (ตรวจสอบการตั้งค่า Authentication ใน Firebase Console)");
                     }
                 };
                 initAuth();
@@ -139,6 +131,10 @@
 
             useEffect(() => {
                 if (!user && isPreview) return;
+                
+                // ป้องกัน error กรณี collectionPath ยังไม่พร้อม (เผื่อโหลดช้า)
+                if (!collectionPath) return;
+
                 const q = collection(db, collectionPath);
                 const unsubscribe = onSnapshot(q, (snapshot) => {
                     const data = {};
@@ -146,7 +142,12 @@
                     setBookings(data);
                     setLoading(false);
                 }, (err) => {
-                    if (err.code !== 'permission-denied') setError("โหลดข้อมูลไม่สำเร็จ");
+                    console.error("Firestore Error:", err);
+                    if (err.code === 'permission-denied') {
+                        setError("ไม่สามารถเข้าถึงข้อมูลได้ (กรุณาเปิด Firestore Test Mode)");
+                    } else {
+                        setError("โหลดข้อมูลไม่สำเร็จ");
+                    }
                     setLoading(false);
                 });
                 return () => unsubscribe();
@@ -174,7 +175,7 @@
                     setSuccessMsg(`จองคิวเวลา ${selectedTime} สำเร็จ!`);
                     setFormData({ name: "", group: "" });
                     setSelectedTime(null);
-                } catch (err) { setError("บันทึกไม่สำเร็จ"); } 
+                } catch (err) { setError("บันทึกไม่สำเร็จ (ตรวจสอบ Firestore Rules)"); } 
                 finally { setLoading(false); }
             };
 
