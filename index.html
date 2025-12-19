@@ -45,7 +45,7 @@
         import { initializeApp } from 'firebase/app';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
         import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, getDoc } from 'firebase/firestore';
-        import { Clock, Users, User, Calendar, CheckCircle, AlertCircle, Trash2, X, Menu } from 'lucide-react';
+        import { Clock, Users, User, Calendar, CheckCircle, AlertCircle, X, Menu } from 'lucide-react';
 
         // --- Config Firebase ---
         const isPreview = typeof __firebase_config !== 'undefined';
@@ -109,10 +109,6 @@
             
             const [formData, setFormData] = useState({ name: "", group: "" });
             const [selectedTime, setSelectedTime] = useState(null);
-
-            // Modal State
-            const [isModalOpen, setIsModalOpen] = useState(false);
-            const [timeToDelete, setTimeToDelete] = useState(null);
 
             const timeSlots = generateTimeSlots();
             const groups = [
@@ -186,24 +182,6 @@
                     
                 } catch (err) { setError("บันทึกไม่สำเร็จ"); } 
                 finally { setLoading(false); }
-            };
-
-            const openDeleteModal = (time) => {
-                setTimeToDelete(time);
-                setIsModalOpen(true);
-            };
-
-            const confirmDelete = async () => {
-                if (!timeToDelete) return;
-                try {
-                    await deleteDoc(doc(db, collectionPath, timeToDelete));
-                    setSuccessMsg(`ยกเลิกคิวเวลา ${timeToDelete} แล้ว`);
-                } catch (err) {
-                    setError("ลบข้อมูลไม่สำเร็จ");
-                } finally {
-                    setIsModalOpen(false);
-                    setTimeToDelete(null);
-                }
             };
 
             if (loading && !bookings) return <div className="min-h-screen flex items-center justify-center text-indigo-600 font-medium">กำลังโหลดระบบ...</div>;
@@ -327,16 +305,6 @@
                                                             </span>
                                                         )}
                                                     </button>
-                                                    {/* ปุ่มลบ */}
-                                                    {isBooked && (
-                                                        <button 
-                                                            onClick={(e) => { e.stopPropagation(); openDeleteModal(time); }} 
-                                                            className="absolute -top-1.5 -right-1.5 sm:-top-2 sm:-right-2 bg-white text-red-500 border border-red-100 p-1 rounded-full shadow-sm z-20 hover:bg-red-50 hover:text-red-600 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
-                                                            title="ยกเลิกการจอง"
-                                                        >
-                                                            <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                                                        </button>
-                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -344,33 +312,9 @@
                                 </div>
                             </div>
                         </div>
-
-                        {/* Modal ยืนยันการลบ */}
-                        {isModalOpen && (
-                            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                                <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full transform transition-all scale-100">
-                                    <div className="flex flex-col items-center text-center">
-                                        <div className="bg-red-100 p-4 rounded-full mb-4">
-                                            <Trash2 className="w-8 h-8 text-red-600" />
-                                        </div>
-                                        <h3 className="text-xl font-bold text-gray-900 mb-2">ยืนยันการยกเลิก?</h3>
-                                        <p className="text-gray-500 mb-6">คุณต้องการยกเลิกคิวเวลา <span className="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">{timeToDelete} น.</span> ใช่หรือไม่?</p>
-                                        <div className="flex gap-3 w-full">
-                                            <button onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-bold transition">
-                                                ปิด
-                                            </button>
-                                            <button onClick={confirmDelete} className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-bold shadow-lg shadow-red-200 transition">
-                                                ใช่, ลบเลย
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                        
                     </div>
                     <div className="text-center text-gray-400 text-xs py-4">
-                        ระบบจองคิว v1.2 (Full HD Support)
+                        ระบบจองคิว v1.3 (Full HD + Read Only)
                     </div>
                 </div>
             );
