@@ -47,7 +47,7 @@
         import { initializeApp } from 'firebase/app';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
         import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, getDoc, runTransaction } from 'firebase/firestore';
-        import { Clock, Users, User, Calendar, CheckCircle, AlertCircle, Trash2, X, Menu, Edit, MoveRight, Settings, LogOut, ArrowRightCircle } from 'lucide-react';
+        import { Clock, Users, User, Calendar, CheckCircle, AlertCircle, Trash2, X, Menu, Edit, MoveRight, Settings, LogOut, ArrowRightCircle, Mail } from 'lucide-react';
 
         // --- Config Firebase ---
         const isPreview = typeof __firebase_config !== 'undefined';
@@ -183,7 +183,7 @@
 
                     {/* Content */}
                     <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                        <div className="max-w-5xl mx-auto space-y-6">
+                        <div className="max-w-6xl mx-auto space-y-6">
                             
                             {/* Stats Cards */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -205,25 +205,27 @@
                                             <tr>
                                                 <th className="p-4 border-b">เวลา</th>
                                                 <th className="p-4 border-b">ชื่อผู้จอง</th>
+                                                <th className="p-4 border-b">อีเมล</th>
                                                 <th className="p-4 border-b">กลุ่ม</th>
                                                 <th className="p-4 border-b text-center">จัดการ</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
                                             {sortedBookings.length === 0 ? (
-                                                <tr><td colSpan="4" className="p-8 text-center text-slate-400">ยังไม่มีการจอง</td></tr>
+                                                <tr><td colSpan="5" className="p-8 text-center text-slate-400">ยังไม่มีการจอง</td></tr>
                                             ) : (
                                                 sortedBookings.map((item) => (
                                                     <tr key={item.time} className="hover:bg-slate-50 transition">
                                                         <td className="p-4 font-bold text-indigo-900">{item.time}</td>
                                                         <td className="p-4">{item.name}</td>
+                                                        <td className="p-4 text-sm text-slate-600">{item.email || "-"}</td>
                                                         <td className="p-4"><span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full text-xs font-medium">{item.group}</span></td>
                                                         <td className="p-4">
                                                             <div className="flex items-center justify-center gap-2">
-                                                                <button onClick={() => setEditModal({ time: item.time, data: { name: item.name, group: item.group } })} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100" title="แก้ไข">
+                                                                <button onClick={() => setEditModal({ time: item.time, data: { name: item.name, email: item.email || "", group: item.group } })} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100" title="แก้ไข">
                                                                     <Edit className="w-4 h-4" />
                                                                 </button>
-                                                                <button onClick={() => setMoveModal({ time: item.time, data: { name: item.name, group: item.group } })} className="p-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100" title="ย้ายเวลา">
+                                                                <button onClick={() => setMoveModal({ time: item.time, data: { name: item.name, email: item.email || "", group: item.group } })} className="p-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100" title="ย้ายเวลา">
                                                                     <MoveRight className="w-4 h-4" />
                                                                 </button>
                                                                 <button onClick={() => setDeleteModal(item.time)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100" title="ลบ">
@@ -250,6 +252,10 @@
                                     <div>
                                         <label className="block text-sm text-slate-600 mb-1">ชื่อ</label>
                                         <input className="w-full border rounded-lg p-2" value={editModal.data.name} onChange={e => setEditModal(prev => ({...prev, data: {...prev.data, name: e.target.value}}))} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm text-slate-600 mb-1">อีเมล</label>
+                                        <input type="email" className="w-full border rounded-lg p-2" value={editModal.data.email} onChange={e => setEditModal(prev => ({...prev, data: {...prev.data, email: e.target.value}}))} />
                                     </div>
                                     <div>
                                         <label className="block text-sm text-slate-600 mb-1">กลุ่ม</label>
@@ -317,7 +323,7 @@
             const [successMsg, setSuccessMsg] = useState("");
             
             // App State
-            const [formData, setFormData] = useState({ name: "", group: "" });
+            const [formData, setFormData] = useState({ name: "", email: "", group: "" });
             const [selectedTime, setSelectedTime] = useState(null);
             const [view, setView] = useState("booking"); // 'booking' | 'admin'
 
@@ -360,7 +366,7 @@
 
             const handleBooking = async () => {
                 setError(""); setSuccessMsg("");
-                if (!formData.name.trim() || !formData.group || !selectedTime) return setError("กรุณากรอกข้อมูลให้ครบ");
+                if (!formData.name.trim() || !formData.email.trim() || !formData.group || !selectedTime) return setError("กรุณากรอกข้อมูลให้ครบ");
                 if (bookings[selectedTime]) { setSelectedTime(null); return setError("เวลานี้ถูกจองไปแล้ว"); }
 
                 try {
@@ -371,12 +377,13 @@
 
                     await setDoc(docRef, {
                         name: formData.name,
+                        email: formData.email,
                         group: formData.group,
                         timestamp: new Date().toISOString(),
                         bookedByUserId: user?.uid
                     });
                     setSuccessMsg(`จองคิวเวลา ${selectedTime} สำเร็จ!`);
-                    setFormData({ name: "", group: "" });
+                    setFormData({ name: "", email: "", group: "" });
                     setSelectedTime(null);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } catch (err) { setError("บันทึกไม่สำเร็จ"); } 
@@ -385,7 +392,7 @@
 
             const handleAdminLogin = () => {
                 const pwd = prompt("กรุณาใส่รหัสผ่านผู้ดูแลระบบ:");
-                if (pwd === "mdpi@admin1996") {
+                if (pwd === "1234") {
                     setView("admin");
                 } else if (pwd !== null) {
                     alert("รหัสผ่านไม่ถูกต้อง");
@@ -437,6 +444,10 @@
                                             <input type="text" name="name" value={formData.name} onChange={handleInputChange} placeholder="เช่น สมชาย ใจดี" className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-base" />
                                         </div>
                                         <div>
+                                            <label className="block text-sm font-medium text-slate-600 mb-1">อีเมล</label>
+                                            <input type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="เช่น name@company.com" className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-base" />
+                                        </div>
+                                        <div>
                                             <label className="block text-sm font-medium text-slate-600 mb-1">สังกัด / กลุ่ม</label>
                                             <div className="relative">
                                                 <Users className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
@@ -470,9 +481,9 @@
 
                                         <button 
                                             onClick={handleBooking} 
-                                            disabled={!selectedTime || !formData.name || !formData.group || loading} 
+                                            disabled={!selectedTime || !formData.name || !formData.email || !formData.group || loading} 
                                             className={`w-full py-3.5 rounded-xl font-bold text-base shadow-md transition-all active:scale-95 flex items-center justify-center gap-2
-                                            ${(!selectedTime || !formData.name || !formData.group) 
+                                            ${(!selectedTime || !formData.name || !formData.email || !formData.group) 
                                                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
                                                 : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg'
                                             }`}
