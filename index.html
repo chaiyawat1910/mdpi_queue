@@ -1,397 +1,171 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ระบบจองคิวถ่ายภาพ</title>
-    
-    <!-- 1. Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ระบบจองการใช้บันได</title>
 
-    <!-- 2. Import Map -->
-    <script type="importmap">
-    {
-        "imports": {
-            "react": "https://esm.sh/react@18.2.0",
-            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-            "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
-            "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
-            "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
-            "lucide-react": "https://esm.sh/lucide-react@0.294.0"
-        }
-    }
-    </script>
+<script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- 3. Babel Standalone -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <style>
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        button { touch-action: manipulation; }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
+    "lucide-react": "https://esm.sh/lucide-react@0.294.0"
+  }
+}
+</script>
+
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="bg-gray-100 text-slate-800">
-    <div id="root"></div>
 
-    <!-- 4. React Code -->
-    <script type="text/babel" data-type="module">
-        import React, { useState, useEffect } from 'react';
-        import { createRoot } from 'react-dom/client';
-        import { initializeApp } from 'firebase/app';
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, getDoc, runTransaction } from 'firebase/firestore';
-        import { Clock, Users, User, Calendar, CheckCircle, AlertCircle, Trash2, X, Menu, Edit, MoveRight, Settings, LogOut, ArrowRightCircle, Mail } from 'lucide-react';
+<body class="bg-slate-100">
+<div id="root"></div>
 
-        // --- Config Firebase ---
-        const isPreview = typeof __firebase_config !== 'undefined';
-        
-        let firebaseConfig;
-        let collectionPath;
+<script type="text/babel" data-type="module">
+import React, { useState, useEffect } from "react";
+import { createRoot } from "react-dom/client";
+import { initializeApp } from "firebase/app";
+import { getAuth, signInAnonymously } from "firebase/auth";
+import {
+  getFirestore, collection, doc,
+  setDoc, getDoc, onSnapshot, deleteDoc
+} from "firebase/firestore";
+import { Clock, Calendar, Building2, User, Users, CheckCircle, AlertCircle } from "lucide-react";
 
-        if (isPreview) {
-            firebaseConfig = JSON.parse(__firebase_config);
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            collectionPath = `artifacts/${appId}/public/data/photo_bookings`;
-        } else {
-            // โหมด GitHub: ใช้ Config เดิมของคุณ
-            firebaseConfig = {
-                apiKey: "AIzaSyBWDvn67-_uW-OagSezI16kjbANVa4yAJI",
-                authDomain: "my-queue-system-5b1d6.firebaseapp.com",
-                projectId: "my-queue-system-5b1d6",
-                storageBucket: "my-queue-system-5b1d6.firebasestorage.app",
-                messagingSenderId: "57979958638",
-                appId: "1:57979958638:web:82d71cc5654f304764fd7f",
-                measurementId: "G-WNP7J2F96C"
-            };
-            collectionPath = "photo_bookings"; 
-        }
+/* 🔧 Firebase Config */
+const firebaseConfig = {
+  apiKey: "AIzaSyBWDvn67-_uW-OagSezI16kjbANVa4yAJI",
+  authDomain: "my-queue-system-5b1d6.firebaseapp.com",
+  projectId: "my-queue-system-5b1d6"
+};
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        
-        // --- Helper Functions ---
-        const INTERVAL_MINUTES = 5;
-        const generateTimeSlots = () => {
-            const slots = [];
-            const ranges = [
-                { start: "11:30", end: "12:30" },
-                { start: "15:30", end: "17:00" }
-            ];
-            ranges.forEach(range => {
-                let current = new Date(`2024-01-01T${range.start}:00`);
-                const end = new Date(`2024-01-01T${range.end}:00`);
-                while (current < end) {
-                    slots.push(current.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false }));
-                    current.setMinutes(current.getMinutes() + INTERVAL_MINUTES);
-                }
-            });
-            return slots;
-        };
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const COLLECTION = "stair_bookings";
 
-        const groups = [
-            "Editorial G1", "Editorial G2", "Editorial G3", "Editorial G4", "Editorial G5",
-            "Editorial G6", "Editorial G7", "Editorial G8", "Editorial G9", "Editorial G10",
-            "Editorial G11", "Editorial G12", "Editorial G13", "Editorial G14", "Editorial G15",
-            "Editorial G16", "Editorial G17", "Editorial G18",
-            "Production G1", "Production G2", "Production G3", "Production G4", "Production G5", "Production G6",
-            "Admin", "IT", "Finance", "HR", "Conference", "Design", "Training", "Proceedings", "Public Service"
-        ];
+/* ⏱️ เวลา 30 นาที */
+const INTERVAL = 30;
+const generateSlots = () => {
+  const ranges = [
+    ["09:00","12:00"],
+    ["13:00","17:00"]
+  ];
+  const slots = [];
+  ranges.forEach(([s,e])=>{
+    let cur = new Date(`2024-01-01T${s}`);
+    const end = new Date(`2024-01-01T${e}`);
+    while(cur < end){
+      slots.push(cur.toTimeString().slice(0,5));
+      cur.setMinutes(cur.getMinutes()+INTERVAL);
+    }
+  });
+  return slots;
+};
 
-        // --- Admin Dashboard Component ---
-        const AdminDashboard = ({ bookings, timeSlots, onClose, db, collectionPath }) => {
-            const [editModal, setEditModal] = useState(null); 
-            const [moveModal, setMoveModal] = useState(null); 
-            const [deleteModal, setDeleteModal] = useState(null); 
-            const [actionLoading, setActionLoading] = useState(false);
-            const [msg, setMsg] = useState("");
+function App(){
+  const [bookings,setBookings]=useState({});
+  const [date,setDate]=useState(new Date().toISOString().split("T")[0]);
+  const [tower,setTower]=useState("");
+  const [time,setTime]=useState("");
+  const [form,setForm]=useState({name:"",email:"",group:""});
+  const [msg,setMsg]=useState("");
+  const [err,setErr]=useState("");
 
-            const handleUpdate = async (e) => {
-                e.preventDefault();
-                setActionLoading(true);
-                try {
-                    const docRef = doc(db, collectionPath, editModal.time);
-                    await setDoc(docRef, { ...editModal.data }, { merge: true });
-                    setMsg("แก้ไขข้อมูลสำเร็จ");
-                    setTimeout(() => { setEditModal(null); setMsg(""); }, 1000);
-                } catch (err) { alert("Error updating: " + err.message); }
-                setActionLoading(false);
-            };
+  const slots = generateSlots();
 
-            const handleMove = async (newTime) => {
-                if (!newTime) return;
-                setActionLoading(true);
-                const oldTime = moveModal.time;
-                const data = moveModal.data;
-                try {
-                    await runTransaction(db, async (transaction) => {
-                        const newDocRef = doc(db, collectionPath, newTime);
-                        const newDoc = await transaction.get(newDocRef);
-                        if (newDoc.exists()) throw "เวลานี้มีคนจองตัดหน้าไปแล้ว";
-                        const oldDocRef = doc(db, collectionPath, oldTime);
-                        transaction.delete(oldDocRef);
-                        transaction.set(newDocRef, { ...data, timestamp: new Date().toISOString() });
-                    });
-                    setMsg(`ย้ายไปเวลา ${newTime} สำเร็จ`);
-                    setTimeout(() => { setMoveModal(null); setMsg(""); }, 1000);
-                } catch (err) { alert("ย้ายไม่สำเร็จ: " + err); }
-                setActionLoading(false);
-            };
+  useEffect(()=>{
+    signInAnonymously(auth);
+    return onSnapshot(collection(db,COLLECTION),(snap)=>{
+      const data={};
+      snap.forEach(d=>data[d.id]=d.data());
+      setBookings(data);
+    });
+  },[]);
 
-            const handleDelete = async () => {
-                setActionLoading(true);
-                try {
-                    await deleteDoc(doc(db, collectionPath, deleteModal));
-                    setDeleteModal(null);
-                } catch (err) { alert("ลบไม่สำเร็จ"); }
-                setActionLoading(false);
-            };
+  const book = async()=>{
+    setErr(""); setMsg("");
+    if(!date||!tower||!time||!form.name||!form.email||!form.group){
+      setErr("กรุณากรอกข้อมูลให้ครบ");
+      return;
+    }
+    const id = `${date}_${tower}_${time}`;
+    const ref = doc(db,COLLECTION,id);
+    const snap = await getDoc(ref);
+    if(snap.exists()){
+      setErr("ช่วงเวลานี้ถูกจองแล้ว");
+      return;
+    }
+    await setDoc(ref,{...form,date,tower,time,created:new Date().toISOString()});
+    setMsg(`จองบันได ${tower} เวลา ${time} สำเร็จ`);
+    setTime("");
+  };
 
-            const sortedBookings = Object.entries(bookings)
-                .map(([time, data]) => ({ time, ...data }))
-                .sort((a, b) => a.time.localeCompare(b.time));
+  return (
+  <div className="max-w-5xl mx-auto p-6 space-y-6">
+    <h1 className="text-3xl font-bold flex gap-2">
+      <Clock/> ระบบจองการใช้บันได
+    </h1>
 
-            const availableSlots = timeSlots.filter(t => !bookings[t]);
+    <div className="grid md:grid-cols-3 gap-4 bg-white p-5 rounded-xl shadow">
+      <div>
+        <label>วันที่</label>
+        <input type="date" value={date}
+          onChange={e=>setDate(e.target.value)}
+          className="w-full border p-2 rounded"/>
+      </div>
 
-            return (
-                <div className="fixed inset-0 bg-gray-100 z-50 flex flex-col fade-in overflow-hidden">
-                    <div className="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center">
-                        <div className="flex items-center gap-3"><Settings className="w-6 h-6" /><h1 className="text-xl font-bold">จัดการการจอง (Admin)</h1></div>
-                        <button onClick={onClose} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg flex items-center gap-2 transition"><LogOut className="w-4 h-4" /> ออกจากระบบ</button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                        <div className="max-w-6xl mx-auto space-y-6">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200"><div className="text-slate-500 text-sm">จองแล้ว</div><div className="text-2xl font-bold text-indigo-600">{sortedBookings.length}</div></div>
-                                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200"><div className="text-slate-500 text-sm">ว่าง</div><div className="text-2xl font-bold text-green-600">{timeSlots.length - sortedBookings.length}</div></div>
-                            </div>
-                            <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse">
-                                        <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold">
-                                            <tr><th className="p-4 border-b">เวลา</th><th className="p-4 border-b">ชื่อผู้จอง</th><th className="p-4 border-b">อีเมล</th><th className="p-4 border-b">กลุ่ม</th><th className="p-4 border-b text-center">จัดการ</th></tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                            {sortedBookings.length === 0 ? (<tr><td colSpan="5" className="p-8 text-center text-slate-400">ยังไม่มีการจอง</td></tr>) : (
-                                                sortedBookings.map((item) => (
-                                                    <tr key={item.time} className="hover:bg-slate-50 transition">
-                                                        <td className="p-4 font-bold text-indigo-900">{item.time}</td><td className="p-4">{item.name}</td><td className="p-4 text-sm text-slate-600">{item.email || "-"}</td><td className="p-4"><span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full text-xs font-medium">{item.group}</span></td>
-                                                        <td className="p-4">
-                                                            <div className="flex items-center justify-center gap-2">
-                                                                <button onClick={() => setEditModal({ time: item.time, data: { name: item.name, email: item.email || "", group: item.group } })} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100" title="แก้ไข"><Edit className="w-4 h-4" /></button>
-                                                                <button onClick={() => setMoveModal({ time: item.time, data: { name: item.name, email: item.email || "", group: item.group } })} className="p-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100" title="ย้ายเวลา"><MoveRight className="w-4 h-4" /></button>
-                                                                <button onClick={() => setDeleteModal(item.time)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100" title="ลบ"><Trash2 className="w-4 h-4" /></button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {editModal && (
-                        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-                            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-                                <h3 className="text-lg font-bold mb-4">แก้ไขข้อมูล ({editModal.time})</h3>
-                                <form onSubmit={handleUpdate} className="space-y-4">
-                                    <div><label className="block text-sm text-slate-600 mb-1">ชื่อ</label><input className="w-full border rounded-lg p-2" value={editModal.data.name} onChange={e => setEditModal(prev => ({...prev, data: {...prev.data, name: e.target.value}}))} /></div>
-                                    <div><label className="block text-sm text-slate-600 mb-1">อีเมล</label><input type="email" className="w-full border rounded-lg p-2" value={editModal.data.email} onChange={e => setEditModal(prev => ({...prev, data: {...prev.data, email: e.target.value}}))} /></div>
-                                    <div><label className="block text-sm text-slate-600 mb-1">กลุ่ม</label><select className="w-full border rounded-lg p-2" value={editModal.data.group} onChange={e => setEditModal(prev => ({...prev, data: {...prev.data, group: e.target.value}}))}>{groups.map(g => <option key={g} value={g}>{g}</option>)}</select></div>
-                                    <div className="flex gap-2 pt-2"><button type="button" onClick={() => setEditModal(null)} className="flex-1 bg-gray-100 py-2 rounded-lg">ยกเลิก</button><button type="submit" disabled={actionLoading} className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">{actionLoading ? 'Saving...' : 'บันทึก'}</button></div>
-                                    {msg && <p className="text-green-600 text-center text-sm">{msg}</p>}
-                                </form>
-                            </div>
-                        </div>
-                    )}
-                    {moveModal && (
-                        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-                            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-                                <h3 className="text-lg font-bold mb-2">ย้ายเวลาจอง</h3>
-                                <p className="text-sm text-gray-500 mb-4">จากเดิม <span className="font-bold">{moveModal.time}</span> ไปยัง...</p>
-                                <div className="max-h-60 overflow-y-auto grid grid-cols-3 gap-2 mb-4">{availableSlots.length === 0 ? <p className="col-span-3 text-center text-red-500">ไม่มีเวลาว่างเหลือแล้ว</p> : availableSlots.map(t => (<button key={t} onClick={() => handleMove(t)} disabled={actionLoading} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-2 rounded border border-indigo-200 text-sm font-medium">{t}</button>))}</div>
-                                <button onClick={() => setMoveModal(null)} className="w-full bg-gray-100 py-2 rounded-lg">ยกเลิก</button>
-                                {msg && <p className="text-green-600 text-center text-sm mt-2">{msg}</p>}
-                            </div>
-                        </div>
-                    )}
-                    {deleteModal && (
-                        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-                            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
-                                <div className="bg-red-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"><Trash2 className="text-red-600" /></div>
-                                <h3 className="font-bold text-lg">ยืนยันการลบ?</h3>
-                                <p className="text-gray-500 text-sm mb-6">คุณต้องการลบการจองเวลา <strong>{deleteModal}</strong> ใช่หรือไม่?</p>
-                                <div className="flex gap-2"><button onClick={() => setDeleteModal(null)} className="flex-1 bg-gray-100 py-2 rounded-lg">ไม่, เก็บไว้</button><button onClick={handleDelete} disabled={actionLoading} className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700">ลบเลย</button></div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        };
+      <div>
+        <label>ตึก</label>
+        <select value={tower}
+          onChange={e=>setTower(e.target.value)}
+          className="w-full border p-2 rounded">
+          <option value="">-- เลือกตึก --</option>
+          <option>Tower A</option>
+          <option>Tower B</option>
+        </select>
+      </div>
 
-        // --- Main App Component ---
-        function PhotoBookingApp() {
-            const [user, setUser] = useState(null);
-            const [bookings, setBookings] = useState({});
-            const [loading, setLoading] = useState(true);
-            const [error, setError] = useState("");
-            const [successMsg, setSuccessMsg] = useState("");
-            
-            const [formData, setFormData] = useState({ name: "", email: "", group: "" });
-            const [selectedTime, setSelectedTime] = useState(null);
-            const [view, setView] = useState("booking"); 
+      <div>
+        <label>เวลา</label>
+        <select value={time}
+          onChange={e=>setTime(e.target.value)}
+          className="w-full border p-2 rounded">
+          <option value="">-- เลือกเวลา --</option>
+          {slots.map(t=>{
+            const id=`${date}_${tower}_${t}`;
+            return <option key={t} disabled={bookings[id]}>{t}</option>
+          })}
+        </select>
+      </div>
+    </div>
 
-            const timeSlots = generateTimeSlots();
+    <div className="grid md:grid-cols-3 gap-4 bg-white p-5 rounded-xl shadow">
+      <input placeholder="ชื่อ" className="border p-2 rounded"
+        onChange={e=>setForm({...form,name:e.target.value})}/>
+      <input placeholder="อีเมล" className="border p-2 rounded"
+        onChange={e=>setForm({...form,email:e.target.value})}/>
+      <input placeholder="กลุ่ม" className="border p-2 rounded"
+        onChange={e=>setForm({...form,group:e.target.value})}/>
+    </div>
 
-            useEffect(() => {
-                const initAuth = async () => {
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    } catch (err) { setError("เชื่อมต่อระบบไม่สำเร็จ"); }
-                };
-                initAuth();
-                return onAuthStateChanged(auth, setUser);
-            }, []);
+    {err && <div className="text-red-600 flex gap-2"><AlertCircle/>{err}</div>}
+    {msg && <div className="text-green-600 flex gap-2"><CheckCircle/>{msg}</div>}
 
-            useEffect(() => {
-                if (!user && isPreview) return;
-                if (!collectionPath) return;
-                const q = collection(db, collectionPath);
-                const unsubscribe = onSnapshot(q, (snapshot) => {
-                    const data = {};
-                    snapshot.forEach((doc) => { data[doc.id] = doc.data(); });
-                    setBookings(data);
-                    setLoading(false);
-                }, (err) => { if (err.code !== 'permission-denied') setError("โหลดข้อมูลไม่สำเร็จ"); setLoading(false); });
-                return () => unsubscribe();
-            }, [user]);
+    <button onClick={book}
+      className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">
+      ยืนยันการจอง (30 นาที)
+    </button>
+  </div>
+  );
+}
 
-            const handleInputChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-
-            const handleBooking = async () => {
-                setError(""); setSuccessMsg("");
-                if (!formData.name.trim() || !formData.email.trim() || !formData.group || !selectedTime) return setError("กรุณากรอกข้อมูลให้ครบ");
-                if (bookings[selectedTime]) { setSelectedTime(null); return setError("เวลานี้ถูกจองไปแล้ว"); }
-
-                try {
-                    setLoading(true);
-                    const docRef = doc(db, collectionPath, selectedTime);
-                    const docSnap = await getDoc(docRef);
-                    if (docSnap.exists()) { setSelectedTime(null); setLoading(false); return setError("เสียใจด้วย! เวลานี้ถูกจองไปแล้ว"); }
-
-                    await setDoc(docRef, {
-                        name: formData.name,
-                        email: formData.email,
-                        group: formData.group,
-                        timestamp: new Date().toISOString(),
-                        bookedByUserId: user?.uid
-                    });
-
-                    setSuccessMsg(`จองคิวเวลา ${selectedTime} สำเร็จ!`);
-                    setFormData({ name: "", email: "", group: "" });
-                    setSelectedTime(null);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                } catch (err) { setError("บันทึกไม่สำเร็จ"); } 
-                finally { setLoading(false); }
-            };
-
-            const handleAdminLogin = () => {
-                const pwd = prompt("กรุณาใส่รหัสผ่านผู้ดูแลระบบ:");
-                if (pwd === "1234") setView("admin");
-                else if (pwd !== null) alert("รหัสผ่านไม่ถูกต้อง");
-            };
-
-            if (loading && !bookings) return <div className="min-h-screen flex items-center justify-center text-indigo-600 font-medium">กำลังโหลดระบบ...</div>;
-
-            return (
-                <div className="min-h-screen pb-10">
-                    {view === "admin" && <AdminDashboard bookings={bookings} timeSlots={timeSlots} onClose={() => setView("booking")} db={db} collectionPath={collectionPath} />}
-                    
-                    <div className="w-full max-w-[1800px] mx-auto bg-white shadow-xl md:rounded-b-2xl md:mt-4 overflow-hidden">
-                        <div className="bg-indigo-600 p-4 sm:p-6 text-white sticky top-0 z-30 shadow-md md:relative">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                <div className="flex items-center gap-3"><Clock className="w-6 h-6 sm:w-8 sm:h-8" /><h1 className="text-xl sm:text-2xl md:text-3xl font-bold">ระบบจองคิวถ่ายภาพ</h1></div>
-                                <div className="bg-white/20 px-3 py-1 rounded-full text-xs sm:text-sm font-medium backdrop-blur-sm self-start sm:self-auto">5 นาที / กลุ่ม</div>
-                            </div>
-                        </div>
-
-                        <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-                            <div className="lg:col-span-4 space-y-4 lg:sticky lg:top-8">
-                                <div className="bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm">
-                                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-indigo-900"><User className="w-5 h-5 text-indigo-600" /> ข้อมูลผู้จอง</h2>
-                                    <div className="space-y-4">
-                                        <div><label className="block text-sm font-medium text-slate-600 mb-1">ชื่อ-นามสกุล</label><input type="text" name="name" value={formData.name} onChange={handleInputChange} placeholder="เช่น สมชาย ใจดี" className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-base" /></div>
-                                        <div><label className="block text-sm font-medium text-slate-600 mb-1">อีเมล</label><input type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="เช่น name@company.com" className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-base" /></div>
-                                        <div><label className="block text-sm font-medium text-slate-600 mb-1">สังกัด / กลุ่ม</label><div className="relative"><Users className="absolute left-3 top-3 w-5 h-5 text-gray-400" /><select name="group" value={formData.group} onChange={handleInputChange} className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white text-base"><option value="">-- เลือกกลุ่ม --</option>{groups.map(g => <option key={g} value={g}>{g}</option>)}</select></div></div>
-                                        <div className="min-h-[20px]">
-                                            {selectedTime && (<div className="bg-indigo-50 text-indigo-700 p-3 rounded-lg text-sm flex items-center gap-2 border border-indigo-100 animate-in slide-in-from-top-2"><Clock className="w-4 h-4 shrink-0" /> <span>เลือกเวลา: <strong>{selectedTime} น.</strong></span></div>)}
-                                            {error && (<div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex items-start gap-2 border border-red-100 animate-pulse"><AlertCircle className="w-5 h-5 shrink-0 mt-0.5" /><span>{error}</span></div>)}
-                                            {successMsg && (<div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm flex items-start gap-2 border border-green-100 animate-in fade-in"><CheckCircle className="w-5 h-5 shrink-0 mt-0.5" /><span>{successMsg}</span></div>)}
-                                        </div>
-                                        <button onClick={handleBooking} disabled={!selectedTime || !formData.name || !formData.email || !formData.group || loading} className={`w-full py-3.5 rounded-xl font-bold text-base shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 ${(!selectedTime || !formData.name || !formData.email || !formData.group) ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg'}`}>{loading ? 'กำลังบันทึก...' : 'ยืนยันการจอง'}</button>
-                                    </div>
-                                </div>
-                                <div className="text-xs text-gray-400 text-center px-2">* กรุณาเลือกเวลาจากตารางด้านขวา (หรือด้านล่างบนมือถือ)</div>
-                            </div>
-                            <div className="lg:col-span-8">
-                                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2 text-indigo-900 sticky top-[70px] lg:static bg-white z-20 py-2 lg:py-0"><Calendar className="w-5 h-5 text-indigo-600" /> ตารางเวลา (11:30-12:30 และ 15:30-17:00)</h2>
-                                <div className="max-h-[60vh] lg:max-h-[600px] overflow-y-auto pr-1 sm:pr-2 custom-scroll border border-slate-200 rounded-xl p-2 sm:p-3 bg-slate-50/50">
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                                        {timeSlots.map((time) => {
-                                            const isBooked = bookings[time];
-                                            const isSelected = selectedTime === time;
-                                            return (
-                                                <div key={time} className="relative group">
-                                                    <button 
-                                                        onClick={() => !isBooked && setSelectedTime(time)} 
-                                                        disabled={isBooked} 
-                                                        className={`w-full py-3 px-2 rounded-lg border text-sm font-medium flex flex-col items-center justify-center gap-1 min-h-[90px] transition-all duration-200
-                                                        ${isBooked 
-                                                            ? 'bg-red-50 border-red-100 text-red-400 cursor-not-allowed' 
-                                                            : isSelected 
-                                                                ? 'bg-indigo-600 border-indigo-600 text-white scale-105 shadow-md ring-2 ring-indigo-200 z-10' 
-                                                                : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:shadow-sm'
-                                                        }`}
-                                                    >
-                                                        <span className="text-lg font-bold mb-1">{time}</span>
-                                                        
-                                                        {isBooked ? (
-                                                            <>
-                                                                <div className="font-medium text-xs truncate w-full px-1">{isBooked.name}</div>
-                                                                <div className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full mt-1 truncate max-w-[90%]">
-                                                                    {isBooked.group}
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <span className={`text-sm font-medium ${isSelected ? 'text-indigo-200' : 'text-emerald-500'}`}>ว่าง</span>
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="text-center text-gray-400 text-xs py-4"><button onClick={handleAdminLogin} className="hover:text-gray-600 underline">สำหรับผู้ดูแลระบบ</button></div>
-                </div>
-            );
-        }
-
-        const root = createRoot(document.getElementById('root'));
-        root.render(<PhotoBookingApp />);
-    </script>
+createRoot(document.getElementById("root")).render(<App/>);
+</script>
 </body>
 </html>
