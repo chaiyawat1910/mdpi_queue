@@ -12,6 +12,7 @@
     --glass: rgba(255,255,255,0.95);
     --primary: #007aff;
     --danger: #ff3b30;
+    --warning: #ff9500;
     --disabled: #8e8e93;
     --bg-gradient: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
 }
@@ -63,6 +64,8 @@ button:disabled {
     opacity: 0.7;
 }
 button.danger { background: var(--danger); }
+button.warning { background: var(--warning); color: #000; }
+button.secondary { background: #6c757d; }
 
 /* Table */
 .table-wrapper { overflow-x: auto; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
@@ -92,6 +95,25 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
 .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
 .bg-loc { background-color: #e3f2fd; color: #0d47a1; }
 .bg-time { background-color: #fff3e0; color: #e65100; }
+
+/* Modal Styles */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+.modal-content {
+    background: #fff;
+    padding: 30px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+}
 </style>
 </head>
 
@@ -157,11 +179,33 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
     </div>
 </div>
 
+<div id="editModal" class="modal-overlay">
+    <div class="modal-content">
+        <h2>✏️ แก้ไขข้อมูล (Admin)</h2>
+        <input type="hidden" id="editId">
+        <label>ชื่อ:</label>
+        <input id="editName">
+        <label>Email:</label>
+        <input id="editEmail">
+        <label>แผนก:</label>
+        <select id="editDept"></select>
+        <label>สถานที่:</label>
+        <select id="editLoc"></select>
+        <label>เวลา:</label>
+        <select id="editTime"></select>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px;">
+            <button class="secondary" onclick="closeEditModal()">ยกเลิก</button>
+            <button onclick="saveEdit()">บันทึกการแก้ไข</button>
+        </div>
+    </div>
+</div>
+
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
     import {
-        getFirestore, collection, addDoc, deleteDoc, doc,
+        getFirestore, collection, addDoc, deleteDoc, updateDoc, doc,
         query, where, orderBy, onSnapshot, getDocs, setDoc, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
@@ -177,7 +221,6 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
     };
 
     const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
     const db = getFirestore(app);
 
     // --- SYSTEM POLICIES ---
@@ -191,59 +234,38 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
         "17:00 - 17:30"
     ];
 
-    // 2. Booking Date Range (YYYY-MM-DD)
+    // 2. Booking Date Range
     const ALLOWED_DATE_START = "2026-01-14";
     const ALLOWED_DATE_END = "2026-01-23";
 
-    // 3. System Access Window (Date Object)
+    // 3. System Access Window (+07:00 for Thailand Time)
     const SYSTEM_OPEN_TIME = new Date("2026-01-14T13:00:00+07:00");
     const SYSTEM_CLOSE_TIME = new Date("2026-01-26T18:00:00+07:00");
 
+    // ✅ UPDATED LOCATIONS AS PER REQUEST
     const locations = ["Tower A ชั้น 26", "Tower A ชั้น 27", "Tower B ชั้น 22"];
     
-    // ✅ Departments: Sorted Alphabetically
+    // Departments
     const departments = [
-        "Editorial G1",
-        "Editorial G2",
-        "Editorial G3",
-        "Editorial G4",
-        "Editorial G5",
-        "Editorial G6",
-        "Editorial G7",
-        "Editorial G8",
-        "Editorial G9",
-        "Editorial G10",
-        "Editorial G11",
-        "Editorial G12",
-        "Editorial G13",
-        "Editorial G14",
-        "Editorial G15",
-        "Editorial G16",
-        "Editorial G17",
-        "Editorial G18",
-        "Production G1",
-        "Production G2",
-        "Production G3",
-        "Production G4",
-        "Production G5",
-        "Production G6",
-        "Admin",
-        "Conference",
-        "Design",
-        "Finance",
-        "HR",
-        "IT",
-        "Proceedings",
-        "Public Service",
-        "Training"
+        "Editorial G1", "Editorial G2", "Editorial G3", "Editorial G4", "Editorial G5", 
+        "Editorial G6", "Editorial G7", "Editorial G8", "Editorial G9", "Editorial G10", 
+        "Editorial G11", "Editorial G12", "Editorial G13", "Editorial G14", "Editorial G15", 
+        "Editorial G16", "Editorial G17", "Editorial G18", "Production G1", "Production G2", 
+        "Production G3", "Production G4", "Production G5", "Production G6", "Admin", 
+        "Conference", "Design", "Finance", "HR", "IT", "Proceedings", "Public Service", "Training"
     ];
 
     // --- INITIALIZATION ---
+    // Init Main Form
     document.getElementById("department").innerHTML = departments.map(d => `<option>${d}</option>`).join("");
     document.getElementById("location").innerHTML += locations.map(l => `<option value="${l}">${l}</option>`).join("");
     document.getElementById("timeSlot").innerHTML += timeSlots.map(t => `<option value="${t}">${t}</option>`).join("");
+
+    // Init Edit Modal Form
+    document.getElementById("editDept").innerHTML = departments.map(d => `<option>${d}</option>`).join("");
+    document.getElementById("editLoc").innerHTML = locations.map(l => `<option value="${l}">${l}</option>`).join("");
+    document.getElementById("editTime").innerHTML = timeSlots.map(t => `<option value="${t}">${t}</option>`).join("");
     
-    // Set Date Picker Constraints
     const qDateInput = document.getElementById("queueDate");
     qDateInput.min = ALLOWED_DATE_START;
     qDateInput.max = ALLOWED_DATE_END;
@@ -255,7 +277,7 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
 
     // --- ACCESS CONTROL CHECKER ---
     function checkSystemStatus() {
-        if (isAdmin) return true; // Admin Bypass
+        if (isAdmin) return true;
 
         const now = new Date();
         const btn = document.getElementById("addQueue");
@@ -330,7 +352,6 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
 
         } catch (e) {
             alert("❌ ไม่สามารถจองได้: " + e.message);
-            console.error(e);
         } finally {
             checkSystemStatus(); 
         }
@@ -358,6 +379,9 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
             } else {
                 snap.forEach(d => {
                     const data = d.data();
+                    // Store full object for edit
+                    const jsonStr = JSON.stringify({id: d.id, ...data}).replace(/"/g, '&quot;');
+                    
                     tbody.innerHTML += `
                     <tr>
                         <td><span class="badge bg-time">${data.timeSlot}</span></td>
@@ -365,17 +389,17 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
                         <td>${data.name}</td>
                         <td>${data.department}</td>
                         <td class="admin-only" style="${isAdmin ? 'display:block' : ''}">
-                            <button class="danger" onclick="deleteQ('${d.id}')">ยกเลิก</button>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                                <button class="warning" onclick="openEdit('${d.id}')">แก้ไข</button>
+                                <button class="danger" onclick="deleteQ('${d.id}')">ลบ</button>
+                            </div>
                         </td>
                     </tr>`;
                 });
             }
             if(isAdmin) document.querySelectorAll(".admin-only").forEach(e => e.style.display = "block");
         }, (error) => {
-            console.error("Firestore Error:", error);
-            if(error.code === 'failed-precondition') {
-                alert("System Notice: กรุณาเปิด Console (F12) และคลิกลิงก์เพื่อสร้าง Index ใน Firebase");
-            }
+            console.error(error);
         });
     };
 
@@ -400,6 +424,49 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
         if(confirm("ยืนยันการลบคิวนี้?")) await deleteDoc(doc(db,"queues",id));
     };
 
+    // --- NEW: EDIT FUNCTIONALITY ---
+    window.openEdit = (id) => {
+        const docSnap = currentSnapshot.find(d => d.id === id);
+        if(!docSnap) return;
+        const data = docSnap.data();
+
+        document.getElementById("editId").value = id;
+        document.getElementById("editName").value = data.name;
+        document.getElementById("editEmail").value = data.email;
+        document.getElementById("editDept").value = data.department;
+        document.getElementById("editLoc").value = data.location;
+        document.getElementById("editTime").value = data.timeSlot;
+
+        document.getElementById("editModal").style.display = "flex";
+    };
+
+    window.closeEditModal = () => {
+        document.getElementById("editModal").style.display = "none";
+    };
+
+    window.saveEdit = async () => {
+        const id = document.getElementById("editId").value;
+        const name = document.getElementById("editName").value;
+        const email = document.getElementById("editEmail").value;
+        const dept = document.getElementById("editDept").value;
+        const loc = document.getElementById("editLoc").value;
+        const time = document.getElementById("editTime").value;
+
+        if(!id || !name || !email) return alert("ข้อมูลไม่ครบถ้วน");
+
+        try {
+            await updateDoc(doc(db, "queues", id), {
+                name, email, department: dept, location: loc, timeSlot: time
+            });
+            alert("✅ แก้ไขข้อมูลเรียบร้อย");
+            closeEditModal();
+        } catch(e) {
+            console.error(e);
+            alert("❌ เกิดข้อผิดพลาด: " + e.message);
+        }
+    };
+
+    // --- EXPORT & NOTIFICATIONS ---
     window.exportCSV = () => {
         let csv = "\uFEFFTime,Location,Name,Department,Email,Date\n";
         currentSnapshot.forEach(d => {
@@ -427,7 +494,6 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
         a.click();
     }
 
-    // --- CALL QUEUE ---
     window.callNext = async () => {
         if(!currentSnapshot.length) return alert("ไม่มีคิวในระบบ");
         const first = currentSnapshot[0].data();
