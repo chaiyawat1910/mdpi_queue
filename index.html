@@ -1,17 +1,461 @@
-// ... (ส่วน Import และ Config เหมือนเดิม) ...
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MDPI ADMIN Queue System</title>
 
-    // --- ส่วนที่ปรับปรุง: EDIT FUNCTIONALITY (FETCH REAL DATA) ---
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+:root {
+    --glass: rgba(255,255,255,0.95);
+    --primary: #007aff;
+    --danger: #ff3b30;
+    --success: #34c759;
+    --warning: #ff9500;
+    --disabled: #8e8e93;
+    --bg-gradient: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+}
+body {
+    margin:0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg-gradient);
+    min-height: 100vh;
+    color: #333;
+    padding-bottom: 50px;
+}
+.container {
+    max-width: 1200px;
+    margin: 30px auto;
+    padding: 30px;
+    background: rgba(255,255,255,0.25);
+    backdrop-filter: blur(25px);
+    border-radius: 24px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+h1, h2 { margin-top: 0; color: #1d1d1f; }
+input, select, button {
+    width: 100%;
+    padding: 12px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    margin: 6px 0;
+    font-size: 15px;
+}
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(0,122,255,0.2);
+}
+button {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    text-transform: uppercase;
+    transition: 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+button:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+button:disabled {
+    background: var(--disabled);
+    cursor: not-allowed;
+    opacity: 0.7;
+    transform: none;
+}
+button.danger { background: var(--danger); }
+button.warning { background: var(--warning); color: #000; }
+button.secondary { background: #6c757d; }
+
+/* Table */
+.table-wrapper { overflow-x: auto; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+table { width: 100%; border-collapse: collapse; background: #fff; }
+th { background: #f8f9fa; font-weight: 600; color: #495057; padding: 12px; text-align: left; text-transform: uppercase; font-size: 0.85em; letter-spacing: 0.5px; }
+td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
+tr:hover { background-color: #f8f9fa; }
+
+.glass {
+    background: #fff;
+    border-radius: 16px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+.admin-only { display: none; }
+.alert {
+    background: var(--primary);
+    color: #fff;
+    padding: 15px;
+    border-radius: 14px;
+    text-align: center;
+    font-size: 16px;
+    display: none;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0,122,255,0.4);
+    animation: slideDown 0.3s ease-out;
+}
+@keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.badge { padding: 6px 10px; border-radius: 6px; font-size: 0.85em; font-weight: 600; display: inline-block; }
+.bg-loc { background-color: #e3f2fd; color: #0d47a1; }
+.bg-time { background-color: #fff3e0; color: #e65100; }
+.bg-dept { background-color: #f3e5f5; color: #4a148c; }
+
+/* Modal Styles */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+.modal-content {
+    background: #fff;
+    padding: 30px;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+    <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="font-size: 2.5em; margin-bottom: 10px;">🪜 MDPI Queue System</h1>
+        <div style="font-size: 1em; color: #555; background: rgba(255,255,255,0.5); padding: 10px; border-radius: 10px; display: inline-block;">
+            📅 เปิดจอง: <b>14 - 23 ม.ค. 2026</b> <br> 
+            ⏰ ระบบเปิด: <b>14 ม.ค. (13:00) - 26 ม.ค. (18:00)</b>
+        </div>
+    </div>
+
+    <div class="alert" id="notifyBox"></div>
+    <div class="alert" id="systemStatusBox" style="background: #ff3b30; display:none;"></div>
+
+    <div class="glass">
+        <h2 style="color: var(--primary);">📝 จองคิวใช้งานบันได</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <label style="font-size:0.9em; color:#666;">วันที่ต้องการจอง</label>
+                <input type="date" id="queueDate" style="font-weight:bold;">
+            </div>
+            <div>
+                <label style="font-size:0.9em; color:#666;">ช่วงเวลา</label>
+                <select id="timeSlot">
+                    <option value="" disabled selected>-- เลือกช่วงเวลา (30 นาที/รอบ) --</option>
+                </select>
+            </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <input id="name" placeholder="ชื่อ - นามสกุล (ภาษาไทย/อังกฤษ)">
+            <input id="email" placeholder="Email องค์กร">
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <select id="department"></select>
+            <select id="location">
+                <option value="" disabled selected>-- เลือกสถานที่ --</option>
+            </select>
+        </div>
+
+        <button id="addQueue" style="margin-top: 15px; padding: 15px; font-size: 1.1em;">ยืนยันการจอง</button>
+    </div>
+
+    <div class="glass">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="margin:0;">📅 ตารางการจอง (วันที่: <span id="displayDate" style="color:var(--primary);">...</span>)</h2>
+            <span style="font-size:0.9em; color:#666;">*ข้อมูลอัปเดตแบบ Real-time</span>
+        </div>
+        
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 15%;">เวลา</th>
+                        <th style="width: 20%;">สถานที่</th>
+                        <th style="width: 25%;">ชื่อผู้จอง</th>
+                        <th style="width: 20%;">แผนก</th>
+                        <th class="admin-only" style="width: 20%;">Admin Action</th>
+                    </tr>
+                </thead>
+                <tbody id="queueTable">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="glass admin-only" style="border: 2px solid var(--primary);">
+        <h2 style="color: var(--primary);">⚙️ Admin Control Panel</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+            <button onclick="exportCSV()">📂 Export CSV</button>
+            <button onclick="exportExcel()">📊 Export Excel</button>
+            <button class="danger" onclick="callNext()">🔔 เรียกคิวถัดไป (Notify)</button>
+        </div>
+    </div>
+
+    <div class="glass">
+        <h2 style="font-size: 1.2em;">🔐 Admin Login</h2>
+        <div style="display: flex; gap: 10px;">
+            <input type="password" id="adminPass" placeholder="รหัสผ่านผู้ดูแลระบบ" style="margin:0;">
+            <button onclick="loginAdmin()" style="width: auto; margin:0; padding-left: 30px; padding-right: 30px;">Login</button>
+        </div>
+    </div>
+</div>
+
+<div id="editModal" class="modal-overlay">
+    <div class="modal-content">
+        <h2 style="margin-top:0;">✏️ แก้ไขข้อมูลการจอง</h2>
+        <input type="hidden" id="editId">
+        
+        <div style="margin-bottom: 10px;">
+            <label style="font-size:0.9em; font-weight:bold;">ชื่อ:</label>
+            <input id="editName">
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label style="font-size:0.9em; font-weight:bold;">Email:</label>
+            <input id="editEmail">
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label style="font-size:0.9em; font-weight:bold;">แผนก:</label>
+            <select id="editDept"></select>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label style="font-size:0.9em; font-weight:bold;">สถานที่:</label>
+            <select id="editLoc"></select>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label style="font-size:0.9em; font-weight:bold;">เวลา:</label>
+            <select id="editTime"></select>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 25px;">
+            <button class="secondary" onclick="closeEditModal()">ยกเลิก</button>
+            <button onclick="saveEdit()">บันทึก</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { 
+        getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, getDoc,
+        query, where, orderBy, onSnapshot, getDocs, setDoc, serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // ✅ CONFIGURATION
+    const firebaseConfig = {
+        apiKey: "AIzaSyBWDvn67-_uW-OagSezI16kjbANVa4yAJI",
+        authDomain: "my-queue-system-5b1d6.firebaseapp.com",
+        projectId: "my-queue-system-5b1d6",
+        storageBucket: "my-queue-system-5b1d6.firebasestorage.app",
+        messagingSenderId: "57979958638",
+        appId: "1:57979958638:web:82d71cc5654f304764fd7f"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // --- SYSTEM CONSTANTS & RULES ---
+    const ADMIN_PASSWORD = "Mdpi@dm1n1996"; 
     
-    window.openEdit = async (id) => {
-        const btnEdit = event.target; // ปุ่มที่กด
-        const originalText = btnEdit.innerText;
-        btnEdit.innerText = "⏳...";
-        btnEdit.disabled = true;
+    // 1. Time Slots & Locations
+    const timeSlots = ["12:00 - 12:30", "15:00 - 15:20", "16:30 - 17:00", "17:00 - 17:30"];
+    const locations = ["Tower A ชั้น 26", "Tower A ชั้น 27", "Tower B ชั้น 22"];
+    
+    // 2. Schedule Constraints
+    const ALLOWED_DATE_START = "2026-01-14";
+    const ALLOWED_DATE_END = "2026-01-23";
+    const SYSTEM_OPEN_TIME = new Date("2026-01-14T13:00:00+07:00");
+    const SYSTEM_CLOSE_TIME = new Date("2026-01-26T18:00:00+07:00");
+
+    const departments = [
+        "Editorial G1", "Editorial G2", "Editorial G3", "Editorial G4", "Editorial G5", 
+        "Editorial G6", "Editorial G7", "Editorial G8", "Editorial G9", "Editorial G10", 
+        "Editorial G11", "Editorial G12", "Editorial G13", "Editorial G14", "Editorial G15", 
+        "Editorial G16", "Editorial G17", "Editorial G18", "Production G1", "Production G2", 
+        "Production G3", "Production G4", "Production G5", "Production G6", "Admin", 
+        "Conference", "Design", "Finance", "HR", "IT", "Proceedings", "Public Service", "Training"
+    ];
+
+    // --- INITIALIZATION ---
+    function initDropdowns(prefix = "") {
+        document.getElementById(prefix + "department").innerHTML = departments.map(d => `<option>${d}</option>`).join("");
+        document.getElementById(prefix + "location").innerHTML = (prefix ? "" : `<option value="" disabled selected>-- เลือกสถานที่ --</option>`) + locations.map(l => `<option value="${l}">${l}</option>`).join("");
+        document.getElementById(prefix + "timeSlot").innerHTML = (prefix ? "" : `<option value="" disabled selected>-- เลือกช่วงเวลา --</option>`) + timeSlots.map(t => `<option value="${t}">${t}</option>`).join("");
+    }
+    
+    initDropdowns(); // Main Form
+    initDropdowns("edit"); // Modal Form (Edit)
+
+    const qDateInput = document.getElementById("queueDate");
+    qDateInput.min = ALLOWED_DATE_START;
+    qDateInput.max = ALLOWED_DATE_END;
+    qDateInput.value = ALLOWED_DATE_START; 
+
+    let currentSnapshot = [];
+    let unsubscribe = null;
+    let isAdmin = false;
+
+    // --- VALIDATION & UTILS ---
+    function checkSystemStatus() {
+        if (isAdmin) return true;
+        const now = new Date();
+        const btn = document.getElementById("addQueue");
+        const statusBox = document.getElementById("systemStatusBox");
+
+        if (now < SYSTEM_OPEN_TIME || now > SYSTEM_CLOSE_TIME) {
+            btn.disabled = true;
+            btn.innerHTML = "⛔ ปิดระบบชั่วคราว <small>(อยู่นอกเวลาทำการ)</small>";
+            statusBox.style.display = "block";
+            statusBox.innerText = `⛔ ระบบเปิดใช้งาน: 14/01/26 (13:00) - 26/01/26 (18:00)`;
+            return false;
+        } else {
+            btn.disabled = false;
+            btn.innerText = "ยืนยันการจอง";
+            statusBox.style.display = "none";
+            return true;
+        }
+    }
+    
+    setInterval(checkSystemStatus, 60000);
+    checkSystemStatus();
+
+    // --- CORE LOGIC: BOOKING ---
+    document.getElementById("addQueue").onclick = async () => {
+        if (!checkSystemStatus()) return;
+
+        const name = document.getElementById("name").value.trim();
+        const email = document.getElementById("email").value.trim();
+        const dept = document.getElementById("department").value;
+        const loc = document.getElementById("location").value;
+        const time = document.getElementById("timeSlot").value;
+        const date = qDateInput.value;
+
+        if(!name || !email || !loc || !time || !date) return alert("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน");
+        if(date < ALLOWED_DATE_START || date > ALLOWED_DATE_END) {
+            return alert(`❌ วันที่เลือกไม่อยู่ในช่วงที่กำหนด (${ALLOWED_DATE_START} ถึง ${ALLOWED_DATE_END})`);
+        }
+
+        const btn = document.getElementById("addQueue");
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = "⏳ กำลังตรวจสอบสถานะ...";
 
         try {
-            // ✅ CHANGE: ดึงข้อมูลสดจาก Database แทนการใช้ข้อมูลในตาราง (Prevent Stale Data)
+            const qRef = collection(db, "queues");
+
+            const roomCheck = await getDocs(query(qRef, 
+                where("date", "==", date),
+                where("location", "==", loc),
+                where("timeSlot", "==", time)
+            ));
+            if(!roomCheck.empty) throw new Error(`❌ สถานที่ "${loc}" รอบเวลา "${time}" ถูกจองเต็มแล้ว`);
+
+            const userCheck = await getDocs(query(qRef,
+                where("date", "==", date),
+                where("email", "==", email),
+                where("timeSlot", "==", time)
+            ));
+            if(!userCheck.empty) throw new Error(`❌ คุณ (${email}) จองรอบเวลา "${time}" ไปแล้ว`);
+
+            await addDoc(qRef, {
+                name, email, department: dept, location: loc, timeSlot: time, date,
+                createdAt: serverTimestamp()
+            });
+
+            alert("✅ จองสำเร็จ! ขอบคุณครับ");
+            document.getElementById("location").value = "";
+            document.getElementById("timeSlot").value = "";
+
+        } catch (e) {
+            alert(e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = originalText;
+            checkSystemStatus();
+        }
+    };
+
+    // --- REALTIME TABLE ---
+    const subscribeQueue = () => {
+        if(unsubscribe) unsubscribe();
+        document.getElementById("displayDate").innerText = qDateInput.value;
+
+        const q = query(
+            collection(db,"queues"),
+            where("date","==", qDateInput.value),
+            orderBy("timeSlot", "asc"),
+            orderBy("location", "asc")
+        );
+
+        unsubscribe = onSnapshot(q, (snap) => {
+            currentSnapshot = snap.docs;
+            const tbody = document.getElementById("queueTable");
+            tbody.innerHTML = "";
+            
+            if(snap.empty) {
+                tbody.innerHTML = `<tr><td colspan='5' style='text-align:center; padding:40px; color:#999; background:#fafafa;'>
+                    ✨ ยังไม่มีการจองในวันนี้ (วันที่ ${qDateInput.value}) <br>คุณสามารถเริ่มจองได้เลย
+                </td></tr>`;
+            } else {
+                snap.forEach(d => {
+                    const data = d.data();
+                    tbody.innerHTML += `
+                    <tr>
+                        <td><span class="badge bg-time">⏰ ${data.timeSlot}</span></td>
+                        <td><span class="badge bg-loc">📍 ${data.location}</span></td>
+                        <td style="font-weight:500;">${data.name}</td>
+                        <td><span class="badge bg-dept">${data.department}</span></td>
+                        <td class="admin-only" style="${isAdmin ? 'display:block' : ''}">
+                            <div style="display:flex; gap:5px;">
+                                <button class="warning" style="padding:5px 10px; font-size:0.8em;" onclick="openEdit('${d.id}')">แก้ไข</button>
+                                <button class="danger" style="padding:5px 10px; font-size:0.8em;" onclick="deleteQ('${d.id}')">ลบ</button>
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+            }
+            if(isAdmin) document.querySelectorAll(".admin-only").forEach(e => e.style.display = "block");
+        }, (error) => {
+            console.error("Firebase Error:", error);
+        });
+    };
+
+    subscribeQueue();
+    qDateInput.onchange = subscribeQueue;
+
+    // --- ADMIN & EDIT LOGIC (UPDATED) ---
+    window.loginAdmin = () => {
+        if(document.getElementById("adminPass").value === ADMIN_PASSWORD){
+            isAdmin = true;
+            document.querySelectorAll(".admin-only").forEach(e => e.style.display = "block");
+            alert("✅ เข้าสู่ระบบผู้ดูแลระบบเรียบร้อย");
+            subscribeQueue(); 
+        } else {
+            alert("❌ รหัสผ่านไม่ถูกต้อง");
+        }
+    };
+
+    window.openEdit = async (id) => {
+        const btnEdit = window.event ? window.event.target : null; 
+        if(btnEdit) {
+            btnEdit.innerText = "⏳...";
+            btnEdit.disabled = true;
+        }
+
+        try {
+            // ✅ CHANGE: ดึงข้อมูลสดจาก Database
             const docRef = doc(db, "queues", id);
-            const docSnap = await getDoc(docRef); // เพิ่ม import getDoc ด้วยนะครับ
+            const docSnap = await getDoc(docRef); 
 
             if (!docSnap.exists()) {
                 alert("❌ ไม่พบข้อมูล (อาจถูกลบไปแล้ว)");
@@ -20,7 +464,6 @@
 
             const data = docSnap.data();
 
-            // นำข้อมูลสดมาใส่ใน Modal
             document.getElementById("editId").value = id;
             document.getElementById("editName").value = data.name;
             document.getElementById("editEmail").value = data.email;
@@ -33,61 +476,104 @@
             console.error(e);
             alert("เกิดข้อผิดพลาดในการดึงข้อมูล: " + e.message);
         } finally {
-            // คืนค่าปุ่มเดิม
-            btnEdit.innerText = originalText;
-            btnEdit.disabled = false;
+            if(btnEdit) {
+                btnEdit.innerText = "แก้ไข";
+                btnEdit.disabled = false;
+            }
         }
     };
 
+    window.closeEditModal = () => document.getElementById("editModal").style.display = "none";
+
     window.saveEdit = async () => {
         const id = document.getElementById("editId").value;
-        const btnSave = event.target; // ปุ่ม Save
+        const btnSave = window.event ? window.event.target : null;
         
-        // เก็บค่าเพื่อตรวจสอบความเปลี่ยนแปลง (Audit)
         const updates = {
             name: document.getElementById("editName").value.trim(),
             email: document.getElementById("editEmail").value.trim(),
             department: document.getElementById("editDept").value,
             location: document.getElementById("editLoc").value,
             timeSlot: document.getElementById("editTime").value,
-            updatedAt: serverTimestamp() // ✅ เพิ่ม timestamp การแก้ไข
+            updatedAt: serverTimestamp() 
         };
 
         if(!updates.name || !updates.email) return alert("กรุณากรอกข้อมูลให้ครบ");
 
-        btnSave.innerText = "กำลังบันทึก...";
-        btnSave.disabled = true;
+        if(btnSave) {
+            btnSave.innerText = "กำลังบันทึก...";
+            btnSave.disabled = true;
+        }
 
         try {
-            // 1. ตรวจสอบการจองซ้ำ (Duplicate Check) ในขณะแก้ไขด้วย
-            // ต้องเช็คว่าถ้าเปลี่ยนเวลา/สถานที่ ห้องนั้นต้องว่าง (ยกเว้นเป็นใบเดิมของตัวเอง)
+            // 1. Duplicate Check (Exclude Self)
             const qRef = collection(db, "queues");
-            
-            // เช็คห้องว่าง (Room Availability Check)
             const roomCheck = await getDocs(query(qRef, 
-                where("date", "==", qDateInput.value), // วันที่เดิม (ถ้ามีแก้ข้ามวันต้องใช้ logic เพิ่ม)
+                where("date", "==", qDateInput.value),
                 where("location", "==", updates.location),
                 where("timeSlot", "==", updates.timeSlot)
             ));
 
-            // Filter เอาเฉพาะใบที่ไม่ใช่ใบเดิม (Exclude current ID)
             const duplicateRoom = roomCheck.docs.find(d => d.id !== id);
             if(duplicateRoom) {
                 throw new Error(`❌ แก้ไขไม่ได้: สถานที่ ${updates.location} รอบ ${updates.timeSlot} มีคนจองแล้ว`);
             }
 
-            // 2. บันทึกข้อมูล (Update)
+            // 2. Update
             await updateDoc(doc(db, "queues", id), updates);
 
             alert("✅ บันทึกการแก้ไขสำเร็จ");
             closeEditModal();
-            
-            // *หมายเหตุ: ตารางจะ Refresh อัตโนมัติด้วย onSnapshot ที่ทำงานอยู่แล้ว*
-
         } catch(e) {
             alert("เกิดข้อผิดพลาด: " + e.message);
         } finally {
-            btnSave.innerText = "บันทึก";
-            btnSave.disabled = false;
+            if(btnSave) {
+                btnSave.innerText = "บันทึก";
+                btnSave.disabled = false;
+            }
         }
     };
+
+    window.deleteQ = async (id) => {
+        if(confirm("⚠️ ยืนยันการลบรายการจองนี้?")) await deleteDoc(doc(db,"queues",id));
+    };
+
+    window.callNext = async () => {
+        if(!currentSnapshot.length) return alert("ไม่มีคิวให้เรียก");
+        const first = currentSnapshot[0].data();
+        await setDoc(doc(db,"notifications","current"), { ...first, calledAt: serverTimestamp() });
+        await deleteDoc(currentSnapshot[0].ref);
+    };
+
+    // Export Logic
+    window.exportCSV = () => {
+        let csv = "\uFEFFDate,Time,Location,Name,Department,Email\n";
+        currentSnapshot.forEach(d => {
+            const q = d.data();
+            csv += `"${q.date}","${q.timeSlot}","${q.location}","${q.name}","${q.department}","${q.email}"\n`;
+        });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+        a.download = `queue_${qDateInput.value}.csv`;
+        a.click();
+    };
+
+    window.exportExcel = () => {
+        const data = currentSnapshot.map(d => d.data());
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+        XLSX.writeFile(wb, `queue_${qDateInput.value}.xlsx`);
+    };
+
+    onSnapshot(doc(db,"notifications","current"), snap => {
+        if(!snap.exists()) return;
+        const d = snap.data();
+        const box = document.getElementById("notifyBox");
+        box.style.display = "block";
+        box.innerHTML = `🔔 <b>ขอเชิญคุณ ${d.name}</b><br>📍 ${d.location} | ⏰ ${d.timeSlot}`;
+        setTimeout(() => box.style.display = "none", 8000);
+    });
+</script>
+</body>
+</html>
