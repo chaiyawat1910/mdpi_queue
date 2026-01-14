@@ -3,44 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MDPI BKK ADMIN - 🪜 ระบบจองคิวบันได</title>
+<title>MDPI Queue System</title>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
 :root {
-    --glass: rgba(255,255,255,.85);
-    --primary:#007aff;
-    --danger:#ff3b30;
-    --success:#34c759;
+    --glass: rgba(255,255,255,0.95);
+    --primary: #007aff;
+    --danger: #ff3b30;
+    --bg-gradient: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
 }
 body {
     margin:0;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    background:linear-gradient(135deg,#f5f7fa,#c3cfe2);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg-gradient);
     min-height: 100vh;
     color: #333;
 }
 .container {
-    max-width:1200px;
-    margin:40px auto;
-    padding:30px;
-    background:rgba(255,255,255,0.4);
-    backdrop-filter:blur(20px);
-    border-radius:24px;
-    box-shadow:0 20px 60px rgba(0,0,0,.1);
-    border: 1px solid rgba(255,255,255,0.6);
+    max-width: 1200px;
+    margin: 30px auto;
+    padding: 30px;
+    background: rgba(255,255,255,0.25);
+    backdrop-filter: blur(25px);
+    border-radius: 24px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    border: 1px solid rgba(255, 255, 255, 0.18);
 }
 h1, h2 { margin-top: 0; color: #1d1d1f; }
-input,select,button {
-    width:100%;
-    padding:14px;
+input, select, button {
+    width: 100%;
+    padding: 12px;
     box-sizing: border-box;
-    border-radius:12px;
-    border:1px solid #d1d1d6;
-    margin:8px 0;
-    font-size: 16px;
-    background: rgba(255,255,255,0.9);
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    margin: 6px 0;
+    font-size: 15px;
 }
 input:focus, select:focus {
     outline: none;
@@ -48,63 +47,56 @@ input:focus, select:focus {
     box-shadow: 0 0 0 3px rgba(0,122,255,0.2);
 }
 button {
-    background:var(--primary);
-    color:#fff;
-    border:none;
-    cursor:pointer;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    cursor: pointer;
     font-weight: 600;
-    transition: all 0.2s;
+    text-transform: uppercase;
+    transition: 0.2s;
 }
-button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,122,255,0.3); }
-button:active { transform: translateY(0); }
-button.danger { background:var(--danger); }
-button.danger:hover { box-shadow: 0 4px 12px rgba(255,59,48,0.3); }
+button:hover { filter: brightness(1.1); }
+button.danger { background: var(--danger); }
 
-table { width:100%; border-collapse:separate; border-spacing: 0; margin-top:10px; }
-th { background: rgba(0,0,0,0.05); font-weight: 600; color: #666; padding: 12px;}
-td { padding:12px; border-bottom:1px solid #eee; text-align:center; background: rgba(255,255,255,0.5); }
-tr:last-child td { border-bottom: none; }
-tr:first-child td:first-child { border-top-left-radius: 12px; }
-tr:first-child td:last-child { border-top-right-radius: 12px; }
-tr:last-child td:first-child { border-bottom-left-radius: 12px; }
-tr:last-child td:last-child { border-bottom-right-radius: 12px; }
+/* Table */
+.table-wrapper { overflow-x: auto; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+table { width: 100%; border-collapse: collapse; background: #fff; }
+th { background: #f8f9fa; font-weight: 600; color: #495057; padding: 12px; text-align: left; }
+td { padding: 12px; border-bottom: 1px solid #eee; }
 
 .glass {
-    background:var(--glass);
-    border-radius:18px;
-    padding:20px;
-    margin-bottom:20px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
-.admin-only { display:none; }
+.admin-only { display: none; }
 .alert {
-    background:var(--primary);
-    color:#fff;
-    padding:15px;
-    border-radius:14px;
-    text-align:center;
-    font-size:18px;
-    display:none;
-    margin-bottom:20px;
-    animation: slideDown 0.3s ease-out;
+    background: var(--primary);
+    color: #fff;
+    padding: 15px;
+    border-radius: 14px;
+    text-align: center;
+    font-size: 18px;
+    display: none;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0,122,255,0.4);
 }
-@keyframes slideDown { from { opacity:0; transform: translateY(-10px); } to { opacity:1; transform: translateY(0); } }
-
-/* Tag Styles */
-.tag { padding: 4px 8px; border-radius: 6px; font-size: 0.85em; font-weight: 600; }
-.tag-loc { background: #e0f2fe; color: #0284c7; }
-.tag-time { background: #fef3c7; color: #d97706; }
+.badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+.bg-loc { background-color: #e3f2fd; color: #0d47a1; }
+.bg-time { background-color: #fff3e0; color: #e65100; }
 </style>
 </head>
 
 <body>
 <div class="container">
-    <h1>MDPI BKK ADMIN - 🪜 ระบบจองคิวบันได</h1>
+    <h1>MDPI Queue System</h1>
 
     <div class="alert" id="notifyBox"></div>
 
     <div class="glass">
-        <h2>📝 ลงทะเบียนจอง</h2>
+        <h2>📝 จองคิวใช้งานบันได</h2>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <input id="name" placeholder="ชื่อ - นามสกุล">
             <input id="email" placeholder="Email">
@@ -122,21 +114,21 @@ tr:last-child td:last-child { border-bottom-right-radius: 12px; }
             <option value="" disabled selected>-- เลือกช่วงเวลา (30 นาที/รอบ) --</option>
         </select>
 
-        <button id="addQueue">ยืนยันการจอง (Booking)</button>
+        <button id="addQueue">ยืนยันการจอง</button>
     </div>
 
     <div class="glass admin-only">
         <h2>⚙️ Admin Control</h2>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <button onclick="exportCSV()">Export CSV</button>
-            <button onclick="exportExcel()">Export Excel</button>
+            <button onclick="exportCSV()">Download CSV</button>
+            <button onclick="exportExcel()">Download Excel</button>
         </div>
         <button class="danger" onclick="callNext()" style="margin-top:10px;">🔔 เรียกคิวถัดไป</button>
     </div>
 
     <div class="glass">
-        <h2>📋 ตารางการจองวันนี้</h2>
-        <div style="overflow-x: auto;">
+        <h2>📋 รายการจอง (วันที่: <span id="displayDate"></span>)</h2>
+        <div class="table-wrapper">
             <table>
                 <thead>
                     <tr>
@@ -150,49 +142,47 @@ tr:last-child td:last-child { border-bottom-right-radius: 12px; }
 
     <div class="glass">
         <h2>🔐 Admin Login</h2>
-        <input type="password" id="adminPass" placeholder="Mdpi@dm1n1996">
+        <input type="password" id="adminPass" placeholder="Password">
         <button onclick="loginAdmin()">Login</button>
     </div>
 </div>
 
 <script type="module">
+    // Import SDKs from CDN for Client-Side usage
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
     import {
         getFirestore, collection, addDoc, deleteDoc, doc,
         query, where, orderBy, onSnapshot, getDocs, setDoc, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
     // ─────────────────────────────────────────────────────────────
-    // ⚠️ CONFIGURATION: แทนที่ด้วยค่า Firebase Config ของคุณ
+    // ✅ PRODUCTION CONFIGURATION (INJECTED)
     // ─────────────────────────────────────────────────────────────
     const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT_ID.firebasestorage.app",
-        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-        appId: "YOUR_APP_ID"
+        apiKey: "AIzaSyBWDvn67-_uW-OagSezI16kjbANVa4yAJI",
+        authDomain: "my-queue-system-5b1d6.firebaseapp.com",
+        projectId: "my-queue-system-5b1d6",
+        storageBucket: "my-queue-system-5b1d6.firebasestorage.app",
+        messagingSenderId: "57979958638",
+        appId: "1:57979958638:web:82d71cc5654f304764fd7f",
+        measurementId: "G-WNP7J2F96C"
     };
 
+    // Initialize Firebase
     const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
     const db = getFirestore(app);
 
-    // SYSTEM CONSTANTS
-    const ADMIN_PASSWORD = "admin123"; 
+    // --- SYSTEM SETTINGS ---
+    const ADMIN_PASSWORD = "Mdpi@dm1n1996"; 
     
-    // --- 1. Master Data Configuration ---
     const locations = [
         "Tower A ชั้น 22",
         "Tower B ชั้น 26",
         "Tower B ชั้น 27"
     ];
-
-    const timeSlots = [
-        "11:30 - 12:00",
-        "12:00 - 12:30",
-        "15:00 - 15:30"
-    ];
-
+    const timeSlots = ["11:30 - 12:00", "12:00 - 12:30", "13:30 - 14:00"];
     const departments = [
         "Editorial G1","Editorial G6","Editorial G10","Editorial G14","Editorial G15",
         "Editorial G16","Editorial G2","Editorial G8","Editorial G12","Editorial G17",
@@ -202,11 +192,9 @@ tr:last-child td:last-child { border-bottom-right-radius: 12px; }
         "Admin","IT","Finance","HR","Conference","Design","Training","Proceedings","Public Service"
     ];
 
-    // --- 2. Initialize UI ---
+    // --- INITIALIZATION ---
     document.getElementById("department").innerHTML = departments.map(d => `<option>${d}</option>`).join("");
-    
     document.getElementById("location").innerHTML += locations.map(l => `<option value="${l}">${l}</option>`).join("");
-    
     document.getElementById("timeSlot").innerHTML += timeSlots.map(t => `<option value="${t}">${t}</option>`).join("");
     
     const qDateInput = document.getElementById("queueDate");
@@ -216,84 +204,65 @@ tr:last-child td:last-child { border-bottom-right-radius: 12px; }
     let unsubscribe = null;
     let isAdmin = false;
 
-    // --- 3. Booking Logic (Critical) ---
+    // --- CORE LOGIC: BOOKING ---
     document.getElementById("addQueue").onclick = async () => {
-        const nameVal = document.getElementById("name").value.trim();
-        const emailVal = document.getElementById("email").value.trim();
-        const deptVal = document.getElementById("department").value;
-        const locVal = document.getElementById("location").value;
-        const timeVal = document.getElementById("timeSlot").value;
-        const dateVal = qDateInput.value;
+        const name = document.getElementById("name").value.trim();
+        const email = document.getElementById("email").value.trim();
+        const dept = document.getElementById("department").value;
+        const loc = document.getElementById("location").value;
+        const time = document.getElementById("timeSlot").value;
+        const date = qDateInput.value;
 
-        // Validation 1: Required Fields
-        if(!nameVal || !emailVal || !locVal || !timeVal || !dateVal) {
-            alert("กรุณากรอกข้อมูลให้ครบถ้วน (สถานที่, เวลา, และข้อมูลส่วนตัว)");
-            return;
-        }
+        if(!name || !email || !loc || !time || !date) return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
 
         const btn = document.getElementById("addQueue");
         btn.disabled = true;
         btn.innerText = "กำลังประมวลผล...";
 
         try {
-            const queuesRef = collection(db, "queues");
+            const qRef = collection(db, "queues");
 
-            // Validation 2: Resource Availability (Is this Room taken at this Time?)
-            // Logic: Same Date + Same Location + Same Time = Collision
-            const resourceQuery = query(
-                queuesRef,
-                where("date", "==", dateVal),
-                where("location", "==", locVal),
-                where("timeSlot", "==", timeVal)
-            );
-            const resourceSnap = await getDocs(resourceQuery);
-            if(!resourceSnap.empty){
-                throw new Error(`เสียใจด้วย! ${locVal} รอบเวลา ${timeVal} ถูกจองไปแล้ว`);
-            }
+            // 1. ตรวจสอบ: สถานที่นี้ เวลานี้ มีคนจองหรือยัง?
+            const roomCheck = await getDocs(query(qRef, 
+                where("date", "==", date),
+                where("location", "==", loc),
+                where("timeSlot", "==", time)
+            ));
+            if(!roomCheck.empty) throw new Error(`${loc} รอบ ${time} ถูกจองแล้ว`);
 
-            // Validation 3: User Collision (Is this User booking another room at the same time?)
-            // Logic: Same Date + Same Email + Same Time = Invalid (Cannot be in 2 places)
-            const userQuery = query(
-                queuesRef,
-                where("date", "==", dateVal),
-                where("email", "==", emailVal),
-                where("timeSlot", "==", timeVal)
-            );
-            const userSnap = await getDocs(userQuery);
-            if(!userSnap.empty){
-                throw new Error(`คุณได้จองรอบเวลา ${timeVal} ไปแล้ว (ไม่สามารถจองซ้อนเวลาเดิมได้)`);
-            }
+            // 2. ตรวจสอบ: User คนนี้จองเวลาเดียวกันที่อื่นหรือไม่?
+            const userCheck = await getDocs(query(qRef,
+                where("date", "==", date),
+                where("email", "==", email),
+                where("timeSlot", "==", time)
+            ));
+            if(!userCheck.empty) throw new Error(`คุณได้จองรอบเวลา ${time} ไปแล้ว`);
 
-            // Execute Booking
-            await addDoc(queuesRef, {
-                name: nameVal,
-                email: emailVal,
-                department: deptVal,
-                location: locVal,
-                timeSlot: timeVal,
-                date: dateVal,
+            // 3. บันทึกข้อมูล
+            await addDoc(qRef, {
+                name, email, department: dept, location: loc, timeSlot: time, date,
                 createdAt: serverTimestamp()
             });
 
-            alert("✅ จองคิวสำเร็จ!");
-            // Reset fields
+            alert("✅ จองสำเร็จเรียบร้อย");
             document.getElementById("location").value = "";
             document.getElementById("timeSlot").value = "";
 
-        } catch (error) {
-            console.error(error);
-            alert("❌ เกิดข้อผิดพลาด: " + error.message);
+        } catch (e) {
+            alert("❌ ไม่สามารถจองได้: " + e.message);
+            console.error(e);
         } finally {
             btn.disabled = false;
-            btn.innerText = "ยืนยันการจอง (Booking)";
+            btn.innerText = "ยืนยันการจอง";
         }
     };
 
-    // --- 4. Realtime Listener ---
+    // --- CORE LOGIC: REALTIME LISTENER ---
     const subscribeQueue = () => {
         if(unsubscribe) unsubscribe();
+        document.getElementById("displayDate").innerText = qDateInput.value;
 
-        // Sort by TimeSlot then Location
+        // Query: วันที่เลือก -> เรียงตามเวลา -> เรียงตามสถานที่
         const q = query(
             collection(db,"queues"),
             where("date","==", qDateInput.value),
@@ -307,28 +276,28 @@ tr:last-child td:last-child { border-bottom-right-radius: 12px; }
             tbody.innerHTML = "";
             
             if(snap.empty) {
-                tbody.innerHTML = "<tr><td colspan='5' style='padding:30px; color:#999;'>ยังไม่มีการจองในวันนี้</td></tr>";
-                return;
+                tbody.innerHTML = "<tr><td colspan='5' style='text-align:center; padding:30px; color:#999;'>ว่าง (ไม่มีการจองในวันนี้)</td></tr>";
+            } else {
+                snap.forEach(d => {
+                    const data = d.data();
+                    tbody.innerHTML += `
+                    <tr>
+                        <td><span class="badge bg-time">${data.timeSlot}</span></td>
+                        <td><span class="badge bg-loc">${data.location}</span></td>
+                        <td>${data.name}</td>
+                        <td>${data.department}</td>
+                        <td class="admin-only" style="${isAdmin ? 'display:block' : ''}">
+                            <button class="danger" onclick="deleteQ('${d.id}')">ยกเลิก</button>
+                        </td>
+                    </tr>`;
+                });
             }
-
-            snap.forEach(d => {
-                const data = d.data();
-                tbody.innerHTML += `
-                <tr id="${d.id}">
-                    <td><span class="tag tag-time">${data.timeSlot}</span></td>
-                    <td><span class="tag tag-loc">${data.location}</span></td>
-                    <td style="font-weight:500;">${data.name}</td>
-                    <td style="color:#666; font-size:0.9em;">${data.department}</td>
-                    <td class="admin-only" style="${isAdmin ? 'display:block' : ''}">
-                        <button class="danger" style="padding:6px 12px; font-size:0.8em;" onclick="deleteQ('${d.id}')">ยกเลิก</button>
-                    </td>
-                </tr>`;
-            });
             if(isAdmin) document.querySelectorAll(".admin-only").forEach(e => e.style.display = "block");
         }, (error) => {
-            console.error("Snapshot Error:", error);
+            console.error("Firestore Error:", error);
+            // แจ้งเตือนเมื่อ Index หาย (กรณี Query ซับซ้อนครั้งแรก)
             if(error.code === 'failed-precondition') {
-                alert("System Notice: กรุณาแจ้ง Admin ให้สร้าง Index ใน Firestore (ดูใน Console)");
+                alert("System Notice: กรุณาเปิด Console (F12) และคลิกลิงก์เพื่อสร้าง Index ใน Firebase");
             }
         });
     };
@@ -336,86 +305,76 @@ tr:last-child td:last-child { border-bottom-right-radius: 12px; }
     subscribeQueue();
     qDateInput.onchange = subscribeQueue;
 
-    // --- 5. Admin & Utilities ---
+    // --- ADMIN MODULE ---
     window.loginAdmin = () => {
-        if(document.getElementById("adminPass").value === ADMIN_PASSWORD){
+        const inputPass = document.getElementById("adminPass").value;
+        if(inputPass === ADMIN_PASSWORD){
             isAdmin = true;
             document.querySelectorAll(".admin-only").forEach(e => e.style.display = "block");
-            subscribeQueue(); // Refresh to show buttons
+            subscribeQueue(); // Re-render table to show delete buttons
+            alert("Login สำเร็จ: เข้าสู่โหมดผู้ดูแลระบบ");
         } else {
-            alert("รหัสผ่านผิด");
+            alert("รหัสผ่านไม่ถูกต้อง");
         }
     };
 
     window.deleteQ = async (id) => {
-        if(confirm("ยืนยันการยกเลิกคิวนี้?")) await deleteDoc(doc(db, "queues", id));
+        if(confirm("ยืนยันการลบคิวนี้?")) await deleteDoc(doc(db,"queues",id));
     };
 
     window.exportCSV = () => {
-        let csv = "\uFEFFTime Slot,Location,Name,Email,Department,Date\n";
+        let csv = "\uFEFFTime,Location,Name,Department,Email,Date\n";
         currentSnapshot.forEach(d => {
             const q = d.data();
-            csv += `"${q.timeSlot}","${q.location}","${q.name}","${q.email}","${q.department}","${q.date}"\n`;
+            csv += `"${q.timeSlot}","${q.location}","${q.name}","${q.department}","${q.email}","${q.date}"\n`;
         });
-        download(csv, `booking_${qDateInput.value}.csv`, "text/csv;charset=utf-8");
+        download(csv, `queue_${qDateInput.value}.csv`, "text/csv;charset=utf-8");
     };
 
     window.exportExcel = () => {
         const data = currentSnapshot.map(d => {
             const q = d.data();
-            return {
-                Date: q.date,
-                TimeSlot: q.timeSlot,
-                Location: q.location,
-                Name: q.name,
-                Department: q.department,
-                Email: q.email
-            };
+            return { Date: q.date, Time: q.timeSlot, Place: q.location, Name: q.name, Dept: q.department, Email: q.email };
         });
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Bookings");
-        XLSX.writeFile(wb, `booking_${qDateInput.value}.xlsx`);
+        XLSX.writeFile(wb, `queue_${qDateInput.value}.xlsx`);
     };
 
     function download(content, file, type){
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(new Blob([content], {type}));
+        a.href = URL.createObjectURL(new Blob([content],{type}));
         a.download = file;
         a.click();
     }
 
-    // --- 6. Calling Queue (Modified for Logic) ---
+    // --- CALL QUEUE LOGIC ---
     window.callNext = async () => {
-        if(!currentSnapshot.length) return alert("ไม่มีคิวให้เรียก");
+        if(!currentSnapshot.length) return alert("ไม่มีคิวในระบบ");
+        const first = currentSnapshot[0].data();
         
-        // Find the earliest slot
-        const first = currentSnapshot[0]; 
-        const d = first.data();
-
-        if(confirm(`ยืนยันการเรียก: ${d.name} \nสถานที่: ${d.location} \nเวลา: ${d.timeSlot}`)) {
-             await setDoc(doc(db,"notifications","current"), {
-                ...d,
-                calledAt: serverTimestamp()
-            });
-            // Note: In booking systems, we usually DON'T delete the record when called, 
-            // but for this specific "Queue" logic requested, I will keep the delete behavior 
-            // or maybe we should just mark it as 'completed'?
-            // Following previous logic: Delete after call.
-            await deleteDoc(first.ref);
-        }
+        // บันทึกลง Notification Collection
+        await setDoc(doc(db,"notifications","current"), {
+            ...first,
+            calledAt: serverTimestamp()
+        });
+        
+        // ลบคิวที่ถูกเรียกแล้ว (Logic: Called = Completed/Removed)
+        await deleteDoc(currentSnapshot[0].ref);
     };
 
-    // Notification Listener
+    // Notification Listener (แสดงผล Popup)
     onSnapshot(doc(db,"notifications","current"), snap => {
         if(!snap.exists()) return;
         const d = snap.data();
         const box = document.getElementById("notifyBox");
         box.style.display = "block";
-        box.innerHTML = `🔔 <b>เรียกคิว</b><br>${d.name} (${d.department})<br>📍 ${d.location} ⏰ ${d.timeSlot}`;
+        box.innerHTML = `🔔 <b>ขอเชิญคุณ ${d.name}</b><br>📍 ${d.location} | ⏰ ${d.timeSlot}`;
+        
+        // Auto hide after 10 seconds
         setTimeout(() => box.style.display = "none", 10000);
     });
-
 </script>
 </body>
 </html>
