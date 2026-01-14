@@ -183,7 +183,7 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
     // --- SYSTEM POLICIES ---
     const ADMIN_PASSWORD = "Mdpi@dm1n1996"; 
     
-    // 1. Time Slots Update
+    // 1. Time Slots
     const timeSlots = [
         "12:00 - 12:30", 
         "15:00 - 15:20", 
@@ -191,7 +191,7 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
         "17:00 - 17:30"
     ];
 
-    // 2. Booking Date Range Policy (YYYY-MM-DD)
+    // 2. Booking Date Range (YYYY-MM-DD)
     const ALLOWED_DATE_START = "2026-01-14";
     const ALLOWED_DATE_END = "2026-01-23";
 
@@ -200,13 +200,42 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
     const SYSTEM_CLOSE_TIME = new Date("2026-01-26T18:00:00");
 
     const locations = ["Tower A ชั้น 22", "Tower B ชั้น 26", "Tower B ชั้น 27"];
+    
+    // ✅ Departments: Sorted Alphabetically
     const departments = [
-        "Editorial G1","Editorial G6","Editorial G10","Editorial G14","Editorial G15",
-        "Editorial G16","Editorial G2","Editorial G8","Editorial G12","Editorial G17",
-        "Editorial G4","Editorial G11","Editorial G3","Editorial G5","Editorial G7",
-        "Editorial G18","Editorial G9","Editorial G13",
-        "Production G1","Production G2","Production G3","Production G4","Production G5","Production G6",
-        "Admin","IT","Finance","HR","Conference","Design","Training","Proceedings","Public Service"
+        "Editorial G1",
+        "Editorial G10",
+        "Editorial G11",
+        "Editorial G12",
+        "Editorial G13",
+        "Editorial G14",
+        "Editorial G15",
+        "Editorial G16",
+        "Editorial G17",
+        "Editorial G18",
+        "Editorial G2",
+        "Editorial G3",
+        "Editorial G4",
+        "Editorial G5",
+        "Editorial G6",
+        "Editorial G7",
+        "Editorial G8",
+        "Editorial G9",
+        "Production G1",
+        "Production G2",
+        "Production G3",
+        "Production G4",
+        "Production G5",
+        "Production G6",
+        "Admin",
+        "Conference",
+        "Design",
+        "Finance",
+        "HR",
+        "IT",
+        "Proceedings",
+        "Public Service",
+        "Training"
     ];
 
     // --- INITIALIZATION ---
@@ -218,7 +247,7 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
     const qDateInput = document.getElementById("queueDate");
     qDateInput.min = ALLOWED_DATE_START;
     qDateInput.max = ALLOWED_DATE_END;
-    qDateInput.value = ALLOWED_DATE_START; // Default to first available day
+    qDateInput.value = ALLOWED_DATE_START; 
 
     let currentSnapshot = [];
     let unsubscribe = null;
@@ -246,14 +275,12 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
         }
     }
 
-    // Run check on load
     checkSystemStatus();
-    // Re-check every minute
     setInterval(checkSystemStatus, 60000);
 
     // --- CORE LOGIC: BOOKING ---
     document.getElementById("addQueue").onclick = async () => {
-        if (!checkSystemStatus()) return; // Double check
+        if (!checkSystemStatus()) return;
 
         const name = document.getElementById("name").value.trim();
         const email = document.getElementById("email").value.trim();
@@ -262,10 +289,8 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
         const time = document.getElementById("timeSlot").value;
         const date = qDateInput.value;
 
-        // Validation: Required Fields
         if(!name || !email || !loc || !time || !date) return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
 
-        // Validation: Date Range (Client Side Enforcement)
         if(date < ALLOWED_DATE_START || date > ALLOWED_DATE_END) {
             return alert(`❌ วันที่เลือกไม่อยู่ในช่วงที่กำหนด (${ALLOWED_DATE_START} ถึง ${ALLOWED_DATE_END})`);
         }
@@ -307,7 +332,7 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
             alert("❌ ไม่สามารถจองได้: " + e.message);
             console.error(e);
         } finally {
-            checkSystemStatus(); // Reset button state
+            checkSystemStatus(); 
         }
     };
 
@@ -363,12 +388,9 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
         if(inputPass === ADMIN_PASSWORD){
             isAdmin = true;
             document.querySelectorAll(".admin-only").forEach(e => e.style.display = "block");
-            
-            // Re-run status check to unlock button for admin
             checkSystemStatus();
-            
             subscribeQueue(); 
-            alert("Login สำเร็จ: เข้าสู่โหมดผู้ดูแลระบบ (System Override Active)");
+            alert("Login สำเร็จ: เข้าสู่โหมดผู้ดูแลระบบ");
         } else {
             alert("รหัสผ่านไม่ถูกต้อง");
         }
@@ -405,7 +427,7 @@ td { padding: 12px; border-bottom: 1px solid #eee; }
         a.click();
     }
 
-    // --- CALL QUEUE LOGIC ---
+    // --- CALL QUEUE ---
     window.callNext = async () => {
         if(!currentSnapshot.length) return alert("ไม่มีคิวในระบบ");
         const first = currentSnapshot[0].data();
